@@ -86,7 +86,7 @@ Here's an example of the playbook you will be running:
 ```
 
 ## License 📄
-MIT License - Feel free to use, modify, and distribute!
+GNU public v2.0 - Feel free to use, modify, and distribute with attribution!
 
 ## Contributing 🤝
 If you have ideas for improving this project or fixing any issues, feel free to open an issue or submit a pull request! 😊
