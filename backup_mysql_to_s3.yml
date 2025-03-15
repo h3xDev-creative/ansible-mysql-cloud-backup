@@ -1,0 +1,42 @@
+---
+- name: Backup MySQL database to S3 and encrypt the backup
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Ensure AWS CLI is installed
+      package:
+        name: aws-cli
+        state: present
+
+    - name: Dump MySQL database to a SQL file
+      shell: >
+        mysqldump -u "{{ lookup('env', 'MYSQL_USER') }}" -p"{{ lookup('env', 'MYSQL_PASSWORD') }}" {{ lookup('env', 'MYSQL_DB') }} > /tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql
+      args:
+        creates: /tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql
+
+    - name: Compress the SQL dump file
+      command: gzip /tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql
+
+    - name: Encrypt the backup file using SSH public key
+      shell: >
+        openssl rsautl -encrypt -inkey ~/.ssh/id_rsa.pub -pubin -in /tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql.gz -out /tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql.gz.enc
+      args:
+        creates: /tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql.gz.enc
+
+    - name: Upload the encrypted backup to S3
+      command: >
+        aws s3 cp /tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql.gz.enc s3://{{ lookup('env', 'AWS_S3_BUCKET') }}/backups/{{ lookup('env', 'MYSQL_DB') }}_backup_{{ ansible_date_time.iso8601 }}.sql.gz.enc
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"
+        AWS_SECRET_ACCESS_KEY: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') }}"
+        AWS_DEFAULT_REGION: "us-west-2"  # Adjust if necessary
+
+    - name: Clean up the local backup files
+      file:
+        path: "/tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql.gz"
+        state: absent
+
+    - name: Clean up the encrypted backup file
+      file:
+        path: "/tmp/{{ lookup('env', 'MYSQL_DB') }}_backup.sql.gz.enc"
+        state: absent

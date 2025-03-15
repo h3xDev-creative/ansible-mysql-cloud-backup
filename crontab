@@ -1,0 +1,1 @@
+0 2 * * * /usr/bin/ansible-playbook /path/to/backup_mysql_to_s3.yml >> /var/log/mysql_backup.log 2>&1
